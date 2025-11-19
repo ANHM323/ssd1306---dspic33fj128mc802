@@ -3,36 +3,30 @@
 #include "i2c_hal.h"
 
 void I2C_Init(void) {
-    // Pines como digitales
     AD1PCFGL = 0xFFFF;
     
-    // Pines como entrada
-    TRISBbits.TRISB8 = 1;   // SCL
-    TRISBbits.TRISB9 = 1;   // SDA
+    TRISBbits.TRISB8 = 1;
+    TRISBbits.TRISB9 = 1;
     
-    // Open Drain obligatorio para I2C
-    ODCBbits.ODCB8 = 1;     // SCL open drain
-    ODCBbits.ODCB9 = 1;     // SDA open drain
+    ODCBbits.ODCB8 = 1;
+    ODCBbits.ODCB9 = 1;
     
-    // Deshabilitar I2C para configurar
     I2C1CONbits.I2CEN = 0;
     
-    // Baud rate 100kHz: (FCY/FSCL - FCY/10000000) - 1
-    I2C1BRG = 395;          // ((40MHz/100kHz) - (40MHz/10MHz)) - 1
+    I2C1BRG = 48;  // 400kHz Fast Mode con FCY=40MHz
     
-    // Limpiar registros
     I2C1CON = 0x0000;
     I2C1STAT = 0x0000;
     
-    // Habilitar I2C
-    I2C1CONbits.I2CEN = 1;
+    I2C1CONbits.DISSLW = 1;  // Slew rate control OFF para Fast Mode
+    I2C1CONbits.A10M = 0;
+    I2C1CONbits.SCLREL = 1;
     
-    // Tiempo para estabilizar
-    __delay_ms(50);
+    I2C1CONbits.I2CEN = 1;
+    __delay_us(100);
 }
 
 void I2C_WaitIdle(void) {
-    // Esperar que todos los bits de estado estén inactivos
     while(I2C1CONbits.SEN || I2C1CONbits.PEN || 
           I2C1CONbits.RSEN || I2C1CONbits.RCEN || 
           I2C1CONbits.ACKEN || I2C1STATbits.TRSTAT);
@@ -40,40 +34,47 @@ void I2C_WaitIdle(void) {
 
 void I2C_Start(void) {
     I2C_WaitIdle();
-    I2C1CONbits.SEN = 1;        // Iniciar condición START
-    while(I2C1CONbits.SEN);     // Esperar que termine
+    I2C1CONbits.SEN = 1;
+    while(I2C1CONbits.SEN);
 }
 
 void I2C_Stop(void) {
     I2C_WaitIdle();
-    I2C1CONbits.PEN = 1;        // Iniciar condición STOP
-    while(I2C1CONbits.PEN);     // Esperar que termine
+    I2C1CONbits.PEN = 1;
+    while(I2C1CONbits.PEN);
 }
 
 void I2C_Restart(void) {
     I2C_WaitIdle();
-    I2C1CONbits.RSEN = 1;       // Iniciar RESTART
-    while(I2C1CONbits.RSEN);    // Esperar que termine
+    I2C1CONbits.RSEN = 1;
+    while(I2C1CONbits.RSEN);
 }
 
 bool I2C_Write(uint8_t data) {
     I2C_WaitIdle();
-    I2C1TRN = data;             // Cargar dato a transmitir
-    while(I2C1STATbits.TRSTAT); // Esperar transmisión
-    return !I2C1STATbits.ACKSTAT; // Retornar true si hay ACK
+    I2C1TRN = data;
+    while(I2C1STATbits.TRSTAT);
+    
+    if(I2C1STATbits.IWCOL) {
+        I2C1STATbits.IWCOL = 0;
+        return false;
+    }
+    
+    return !I2C1STATbits.ACKSTAT;
 }
 
 uint8_t I2C_Read(bool ack) {
     uint8_t data;
     I2C_WaitIdle();
-    I2C1CONbits.RCEN = 1;       // Habilitar recepción
-    while(I2C1CONbits.RCEN);    // Esperar dato
-    data = I2C1RCV;             // Leer dato recibido
+    
+    I2C1CONbits.RCEN = 1;
+    while(!I2C1STATbits.RBF);
+    data = I2C1RCV;
     
     I2C_WaitIdle();
-    I2C1CONbits.ACKDT = ack ? 0 : 1; // 0=ACK, 1=NACK
-    I2C1CONbits.ACKEN = 1;      // Enviar ACK/NACK
-    while(I2C1CONbits.ACKEN);   // Esperar que termine
+    I2C1CONbits.ACKDT = ack ? 0 : 1;
+    I2C1CONbits.ACKEN = 1;
+    while(I2C1CONbits.ACKEN);
     
     return data;
 }
