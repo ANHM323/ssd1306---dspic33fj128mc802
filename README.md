@@ -73,11 +73,11 @@ Edita `ssd1306_config.h`:
 - `demo_bars.c`: Barras de progreso para monitoreo.
 
 ## 📄 Licencia
-Esta librería está licenciada bajo **MIT License**.  
+Esta librería está licenciada bajo **Apache 2.0**.  
 Ver archivo [LICENSE](LICENSE) para detalles completos.  
 ```
-Copyright (c) 2026 [Tu Nombre]
-Licensed under the MIT License.
+Copyright (c) 2026 ANHM323
+Licensed under the Apache licence.
 ```
 
 ## 🤝 Contribuir
